@@ -23,6 +23,7 @@ jobs:
           name: Deploy to EB if branch is Master
           command: |
             eb use circleci-beanstalk-dev --profile eb-cli --region eu-central-1
+            eb setenv APP_ENV=$APP_ENV
             eb deploy -v --staged --profile eb-cli
  
 workflows:
