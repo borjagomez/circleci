@@ -1,6 +1,6 @@
 version: 2
 jobs:
-  deploy:
+  deploy-dev:
     docker:
       - image: circleci/python:2.7
     working_directory: ~/repo
@@ -25,14 +25,48 @@ jobs:
             eb use circleci-beanstalk-dev --profile eb-cli --region eu-central-1
             eb setenv APP_ENV=$APP_ENV
             eb deploy -v --staged --profile eb-cli
+
+  deploy-stage:
+    docker:
+      - image: circleci/python:2.7
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run:
+          name: Install awscli
+          command: |
+            sudo pip install awsebcli --upgrade
+      - run:
+          name: Create AWS credentials manually
+          command: |
+            mkdir ~/.aws
+            touch ~/.aws/config
+            chmod 600 ~/.aws/config
+            echo "[profile eb-cli]" > ~/.aws/config
+            echo "aws_access_key_id=$AWS_ACCESS_KEY_ID" >> ~/.aws/config
+            echo "aws_secret_access_key=$AWS_SECRET_ACCESS_KEY" >> ~/.aws/config
+      - run:
+          name: Deploy to EB if branch is Master
+          command: |
+            eb use circleci-beanstalk-stage --profile eb-cli --region eu-central-1
+            eb setenv APP_ENV=$APP_ENV
+            eb deploy -v --staged --profile eb-cli
  
 workflows:
   version: 2
   build-deploy:
     jobs:
-      - deploy:
+      - deploy-dev:
           filters:
             branches:
               only:
                 - master
                 - develop
+      - hold-stage:
+          type: approval
+          requires: 
+            - deploy-dev
+      - build-stage:
+          requires: 
+            - hold-stage
+            
